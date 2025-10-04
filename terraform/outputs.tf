@@ -30,6 +30,11 @@ output "application_url" {
   value       = "http://${aws_lb.main.dns_name}"
 }
 
+output "api_base_url" {
+  description = "Base URL for API endpoints (for frontend configuration)"
+  value       = "http://${aws_lb.main.dns_name}/api"
+}
+
 # ECS
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
@@ -60,8 +65,8 @@ output "rds_cluster_reader_endpoint" {
 }
 
 output "database_secret_arn" {
-  description = "ARN of the database password secret"
-  value       = aws_secretsmanager_secret.db_password.arn
+  description = "ARN of the complete database connection secret"
+  value       = aws_secretsmanager_secret.db_connection.arn
   sensitive   = true
 }
 

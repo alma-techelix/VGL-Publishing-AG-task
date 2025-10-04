@@ -1,24 +1,48 @@
-# VPC
+#==============================================================================
+# VIRTUAL PRIVATE CLOUD (VPC) CONFIGURATION
+#==============================================================================
+#
+# This file creates the network foundation for the VGL application:
+# - VPC with DNS support
+# - Public subnets for load balancer
+# - Private subnets for application containers
+# - Database subnets for Aurora cluster
+# - Internet and NAT gateways for connectivity
+#
+#==============================================================================
+
+#------------------------------------------------------------------------------
+# VPC - Main Network Container
+#------------------------------------------------------------------------------
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
   
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-vpc"
+    Name        = "${local.name_prefix}-vpc"
+    Description = "Main VPC for VGL application infrastructure"
   })
 }
 
-# Internet Gateway
+#------------------------------------------------------------------------------
+# Internet Gateway - Public Internet Access
+#------------------------------------------------------------------------------
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-igw"
+    Name        = "${local.name_prefix}-igw"
+    Description = "Internet gateway for public subnet access"
   })
 }
 
-# Public Subnets
+#------------------------------------------------------------------------------
+# Public Subnets - Load Balancer Tier
+#------------------------------------------------------------------------------
+
 resource "aws_subnet" "public" {
   count = var.availability_zones
   
@@ -28,12 +52,17 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
   
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-public-${count.index + 1}"
-    Type = "public"
+    Name        = "${local.name_prefix}-public-${count.index + 1}"
+    Type        = "public"
+    Tier        = "load-balancer"
+    Description = "Public subnet for ALB in AZ ${count.index + 1}"
   })
 }
 
-# Private Subnets
+#------------------------------------------------------------------------------
+# Private Subnets - Application Tier
+#------------------------------------------------------------------------------
+
 resource "aws_subnet" "private" {
   count = var.availability_zones
   
@@ -42,12 +71,16 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
   
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-private-${count.index + 1}"
-    Type = "private"
+    Name        = "${local.name_prefix}-private-${count.index + 1}"
+    Type        = "private"
+    Tier        = "application"
+    Description = "Private subnet for ECS tasks in AZ ${count.index + 1}"
   })
 }
 
-# Database Subnets
+#------------------------------------------------------------------------------
+# Database Subnets - Data Tier
+#------------------------------------------------------------------------------
 resource "aws_subnet" "database" {
   count = var.availability_zones
   

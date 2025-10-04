@@ -1,6 +1,9 @@
-# AWS Configuration
+#==============================================================================
+# AWS CONFIGURATION
+#==============================================================================
+
 variable "aws_region" {
-  description = "AWS region for infrastructure"
+  description = "AWS region for infrastructure deployment"
   type        = string
   default     = "us-east-1"
 }
@@ -17,33 +20,49 @@ variable "environment" {
 }
 
 variable "project_name" {
-  description = "Project name for resource naming"
+  description = "Project name used for resource naming and tagging"
   type        = string
   default     = "vgl-challenge"
 }
 
-# VPC Configuration
+#==============================================================================
+# NETWORK CONFIGURATION
+#==============================================================================
+
 variable "vpc_cidr" {
-  description = "CIDR block for VPC"
+  description = "CIDR block for the VPC (recommended: 10.0.0.0/16)"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "availability_zones" {
-  description = "Number of availability zones to use"
+  description = "Number of availability zones to use (2 = basic HA, 3 = full HA)"
   type        = number
   default     = 2
+  
+  validation {
+    condition     = var.availability_zones >= 2 && var.availability_zones <= 3
+    error_message = "Must use 2-3 availability zones for proper redundancy."
+  }
 }
 
-# ECS Configuration
+#==============================================================================
+# CONTAINER CONFIGURATION
+#==============================================================================
+
 variable "backend_cpu" {
-  description = "CPU units for backend task (1024 = 1 vCPU)"
+  description = "CPU units for backend task (512 = 0.5 vCPU, 1024 = 1 vCPU)"
   type        = number
   default     = 512
+  
+  validation {
+    condition     = contains([256, 512, 1024, 2048, 4096], var.backend_cpu)
+    error_message = "Backend CPU must be one of: 256, 512, 1024, 2048, 4096."
+  }
 }
 
 variable "backend_memory" {
-  description = "Memory (MB) for backend task"
+  description = "Memory in MB for backend task (must match CPU ratio)"
   type        = number
   default     = 1024
 }

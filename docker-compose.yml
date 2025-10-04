@@ -87,15 +87,16 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: vgl-backend-prod
+    env_file:
+      - .env.production
     environment:
+      # Override for local production testing (AWS uses Secrets Manager for all DB_* vars)
       - DB_DRIVER=mysql
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_NAME=app
       - DB_USER=app
       - DB_PASS=vgl_SQL1!
-      - HTTP_HOST=0.0.0.0
-      - HTTP_PORT=8080
     ports:
       - "8081:8080"
     networks:

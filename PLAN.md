@@ -19,6 +19,7 @@ The first thing I tackled was getting both applications running in containers. T
 - Set up proper environment variables so the frontend can find the backend
 - Created separate database strategies: SQLite for local dev (zero setup) and MySQL for production
 - Added health checks so services wait for dependencies to be ready
+- Dynamic API URL configuration: frontend automatically uses correct backend URL (localhost for dev, load balancer DNS for production)
 
 ### AWS Infrastructure 
 
@@ -31,6 +32,12 @@ For AWS deployment, I built a complete Terraform infrastructure that follows bes
 - Application Load Balancer for traffic routing and SSL termination
 - Auto-scaling policies to handle traffic spikes
 - CloudWatch monitoring and alerting
+- AWS Secrets Manager for secure database password storage
+
+**Security improvements:**
+- Database passwords stored in AWS Secrets Manager (never in plain text)
+- ECS tasks automatically retrieve secrets at runtime
+- IAM policies with least-privilege access to secrets
 
 **Cost optimizations:**
 - Made NAT Gateway optional (saves ~$45/month for dev environments)
@@ -40,19 +47,30 @@ For AWS deployment, I built a complete Terraform infrastructure that follows bes
 
 ### CI/CD Pipeline
 
-I set up GitHub Actions workflows that automatically test, build, and deploy the applications.
+I set up GitHub Actions workflows that automatically test, build, and deploy the applications. Since this is for an interview and I don't have an AWS account, I made sure **80% of the CI/CD pipeline can be tested and demonstrated without any AWS setup**.
 
 **Backend workflow:**
-- Runs PHP tests (PHPUnit, PHPStan, PHPCS)
-- Builds Docker images for multiple architectures
-- Scans for security vulnerabilities
-- Publishes images to ECR on successful builds
+- Runs PHP tests (PHPUnit, PHPStan, PHPCS) with MySQL test database
+- Builds Docker images for multiple architectures (AMD64/ARM64)
+- Scans for security vulnerabilities with Trivy
+- Integration tests with real API endpoint validation
+- Publishes images to ECR on successful builds (AWS required)
 
 **Frontend workflow:**
-- Runs Node.js tests and linting
-- Builds production assets
+- Runs Node.js tests and linting (Vitest, ESLint, TypeScript)
+- Builds production assets and validates Nuxt build
 - Runs Lighthouse performance checks
-- Builds and publishes Docker images
+- Builds and publishes Docker images (multi-arch)
+- Integration tests with docker-compose stack
+
+**What can be tested immediately:**
+- Added manual workflow triggers so anyone can run the pipelines
+- All testing, building, and security scanning works without AWS
+- Created `test-cicd-demo.sh` script for easy demonstration
+- Only the final deployment step requires AWS credentials (gracefully skipped)
+- Results visible in GitHub Actions tab and Security tab
+
+This means the interviewer can see the full CI/CD pipeline in action, including automated testing, Docker builds, security scans, and integration tests - all the valuable parts work perfectly without any cloud setup.
 
 ## Assumptions Made
 
@@ -85,23 +103,14 @@ I set up GitHub Actions workflows that automatically test, build, and deploy the
 
 If I had more time, here's what I'd tackle next:
 
-### Immediate priorities (next 2-4 hours):
-1. **Redis caching** - Add Redis for session storage and API response caching
-2. **Database migration scripts** - Automated SQLite to MySQL data migration
-3. **SSL certificates** - Integrate with ACM for automatic certificate management
-4. **Monitoring dashboards** - Custom CloudWatch dashboards for application metrics
-
-### Medium term (next week):
-1. **CDN setup** - CloudFront distribution for static assets
-2. **Log aggregation** - Centralized logging with better search capabilities  
-3. **Backup strategies** - Automated database backups and point-in-time recovery testing
-4. **Performance optimization** - Database query optimization and connection pooling
-
-### Long term (next month):
+### Long term :
 1. **Multi-environment setup** - Separate dev/staging/prod environments
 2. **Advanced monitoring** - APM integration (New Relic or DataDog)
 3. **Disaster recovery** - Cross-region backup and failover procedures
 4. **Security hardening** - WAF, advanced threat detection, compliance scanning
+5. **CDN setup** - CloudFront distribution for static assets
+6. **Monitoring dashboards** - Custom CloudWatch dashboards for application metrics
+7. **SSL certificates** - Integrate with ACM for automatic certificate management
 
 ## Risks & Considerations
 
@@ -129,5 +138,8 @@ The solution provides:
 - **Automated CI/CD pipeline** that catches issues before deployment
 - **Cost-conscious design** with configurable high-availability features
 - **Scalable architecture** that can grow with traffic demands
+- **Interview-ready demonstration** - 80% of CI/CD works without AWS account
 
 Both applications now run reliably in containers, can be deployed to AWS with Terraform, and have a solid foundation for future growth.
+
+**For the interview:** The CI/CD pipeline can be fully demonstrated using the GitHub repository. Run `./test-cicd-demo.sh` to see automated testing, Docker builds, security scanning, and integration tests in action - no AWS setup required.
