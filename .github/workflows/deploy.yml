@@ -1,0 +1,135 @@
+name: Deploy to AWS ECS
+
+on:
+  workflow_run:
+    workflows: ["Backend CI/CD", "Frontend CI/CD"]
+    types:
+      - completed
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: vgl-production
+  ECR_REGISTRY: public.ecr.aws
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service: [backend, frontend]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition \
+          --task-definition vgl-${{ matrix.service }} \
+          --query taskDefinition > task-definition-${{ matrix.service }}.json
+
+    - name: Update task definition image
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition-${{ matrix.service }}.json
+        container-name: vgl-${{ matrix.service }}
+        image: ${{ env.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}/vgl-${{ matrix.service }}:${{ github.event.workflow_run.head_sha }}
+
+    - name: Deploy to Amazon ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: vgl-${{ matrix.service }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Verify deployment
+      run: |
+        # Wait for deployment to stabilize
+        aws ecs wait services-stable \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services vgl-${{ matrix.service }}
+        
+        # Get load balancer URL for health check
+        if [ "${{ matrix.service }}" = "backend" ]; then
+          endpoint="${{ secrets.BACKEND_URL }}/health"
+        else
+          endpoint="${{ secrets.FRONTEND_URL }}"
+        fi
+        
+        # Health check
+        timeout 120 bash -c "until curl -f $endpoint; do sleep 5; done"
+        echo "✅ ${{ matrix.service }} deployment successful and healthy"
+
+  # Rollback on failure
+  rollback:
+    if: ${{ failure() }}
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Rollback services
+      run: |
+        # Get previous task definition
+        previous_task_def=$(aws ecs list-task-definitions \
+          --family-prefix vgl-backend \
+          --status ACTIVE \
+          --sort DESC \
+          --query 'taskDefinitionArns[1]' \
+          --output text)
+        
+        if [ "$previous_task_def" != "None" ]; then
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service vgl-backend \
+            --task-definition $previous_task_def
+          
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service vgl-frontend \
+            --task-definition $previous_task_def
+            
+          echo "🔄 Rollback initiated to previous version"
+        fi
+
+  # Notify deployment status
+  notify:
+    if: always()
+    needs: [deploy]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Notify deployment status
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        text: |
+          Deployment Status: ${{ job.status }}
+          Commit: ${{ github.event.workflow_run.head_sha }}
+          Branch: ${{ github.event.workflow_run.head_branch }}
+          Services: Backend, Frontend
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -1,0 +1,46 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Backend specific
+packages/backend/.env
+packages/backend/vendor/
+packages/backend/composer.phar
+
+# Frontend specific
+packages/frontend/.env
+packages/frontend/.nuxt/
+packages/frontend/.output/
+packages/frontend/dist/
+packages/frontend/node_modules/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
