@@ -21,17 +21,12 @@ export interface GenreDto {
   Name: string | null
 }
 
-function getApiBaseUrl(environment: string) {
-  if ('dev' === environment) {
-    return 'http://localhost:8080'
-  } else {
-    return 'http://186.201.152.216'
-  }
-}
-
 export const useApi = () => {
   const config = useRuntimeConfig()
-  const baseURL = getApiBaseUrl(config.public.apiEnvironment || 'dev')
+  const environment = config.public.apiEnvironment || 'dev'
+  const baseURL = environment === 'dev' 
+    ? (config.public.apiBaseUrlDev as string)
+    : (config.public.apiBaseUrlProd as string)
 
   async function get<T = unknown>(path: string) {
     const isInternal = path.startsWith('/api')

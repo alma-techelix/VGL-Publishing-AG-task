@@ -28,6 +28,14 @@ pnpm dev
 
 App runs at `http://localhost:3000` by default.
 
+### Dev vs Prod Backend
+In dev (Docker default) the backend uses a bundled SQLite database (no separate DB container). The production profile switches to MySQL and different container targets. Use the root `Makefile` for shortcuts:
+
+```bash
+make up       # start dev (SQLite)
+make prod-up  # start prod profile (MySQL)
+```
+
 ## Build & Preview
 ```bash
 pnpm build

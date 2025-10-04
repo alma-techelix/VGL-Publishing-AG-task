@@ -1,0 +1,136 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: vgl-mysql
+    profiles:
+      - production
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: vgl_SQL1!
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./packages/backend/data:/docker-entrypoint-initdb.d:ro
+    networks:
+      - vgl-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Backend PHP Service
+  backend:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: vgl-backend
+    # Explicit command because development stage image may not retain final CMD reliably
+    command: ["php", "bin/server.php"]
+    environment:
+      # Switch to bundled SQLite dev database (no MySQL needed for local dev)
+      - DB_DRIVER=sqlite
+      - DB_PATH=/app/data/dev.db
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./packages/backend:/app
+      - backend_vendor:/app/vendor
+    networks:
+      - vgl-network
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"file_get_contents('http://127.0.0.1:8080/health') or exit(1);\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Nuxt Service
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: vgl-frontend
+    environment:
+      - NUXT_PUBLIC_API_ENVIRONMENT=dev
+      - NUXT_PUBLIC_API_BASE_URL_DEV=http://backend:8080
+      - NUXT_PUBLIC_API_BASE_URL_PROD=http://backend:8080
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - vgl-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production Backend
+  backend-prod:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: vgl-backend-prod
+    environment:
+      - DB_DRIVER=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=app
+      - DB_USER=app
+      - DB_PASS=vgl_SQL1!
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8080
+    ports:
+      - "8081:8080"
+    networks:
+      - vgl-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    profiles:
+      - production
+
+  # Production Frontend
+  frontend-prod:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: vgl-frontend-prod
+    environment:
+      - NUXT_PUBLIC_API_ENVIRONMENT=prod
+      - NUXT_PUBLIC_API_BASE_URL_PROD=http://backend-prod:8080
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    networks:
+      - vgl-network
+    depends_on:
+      - backend-prod
+    profiles:
+      - production
+
+networks:
+  vgl-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  backend_vendor:
+  frontend_node_modules:

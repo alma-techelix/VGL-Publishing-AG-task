@@ -1,0 +1,45 @@
+# Frontend .dockerignore
+.git
+.gitignore
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.nuxt/
+.output/
+dist/
+
+# Environment files
+.env
+.env.*
+
+# Testing
+test/
+*.test.ts
+*.test.js
+vitest.config.*
+
+# Development
+.eslintrc.*
+eslint.config.*
+tsconfig.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,35 @@
+# Backend .dockerignore
+.git
+.gitignore
+README.md
+CHANGELOG.md
+.env
+.env.*
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Testing
+tests/
+phpunit.xml
+phpunit.xml.dist
+.phpunit.result.cache
+
+# Development tools
+phpcs.xml
+phpstan.neon
+.php-cs-fixer.cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
