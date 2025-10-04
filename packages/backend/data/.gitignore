@@ -1,0 +1,10 @@
+# Ignore local developer database variants
+*.local.*
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Keep the dev.db tracked
+!dev.db
